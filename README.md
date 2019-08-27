@@ -3,7 +3,7 @@ SNAG (SequeNce simulAtion in Golang) simulates sequences given a set of input tr
 
 So far only LG (with `-aa`) and K2P (default) models are available on the command line.
 
-By default, site rates follows a discrete gamma distribution with a shape parameter (alpha) of 1.0 and 4 categories, but it is possible to :
+By default, site rates follow a discrete gamma distribution with a shape parameter (alpha) of 1.0 and 4 categories, but it is possible to :
 
 - disable the gamma distribution with: `-gamma=false`
 - use a continuous gamma distribution with: `-discrete=false`
