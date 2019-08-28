@@ -107,6 +107,22 @@ func (s *snagImpl) genrootseq() (root []int) {
 	return
 }
 
+// Checks that pi sums to 1.0.
+// If not, rescales the values
+func checkPI(pi []float64) {
+	sum := .0
+	for _, v := range pi {
+		sum += v
+	}
+	if sum != 1.0 {
+		fmt.Fprintf(os.Stderr, "[Warning] State frequencies do not add up to 1.0, rescaling\n")
+		for i, v := range pi {
+			pi[i] = v / sum
+			fmt.Fprintf(os.Stderr, "pi[%d]=%f\n", i, pi[i])
+		}
+	}
+}
+
 func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 	params []float64, naligns int, seed int64, model string) (s *snagImpl, err error) {
 
@@ -157,8 +173,9 @@ func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 		for i := 0; i < ns; i++ {
 			s.pi[i] = params[i]
 		}
+		checkPI(s.pi)
 		dm := dna.NewF81Model()
-		dm.InitModel(params[0], params[1], params[2], params[3])
+		dm.InitModel(s.pi[0], s.pi[1], s.pi[2], s.pi[3])
 		s.m = dm
 	case "gtr":
 		if len(params) != 10 {
@@ -168,8 +185,9 @@ func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 		for i := 0; i < ns; i++ {
 			s.pi[i] = params[i+6]
 		}
+		checkPI(s.pi)
 		dm := dna.NewGTRModel()
-		dm.InitModel(params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9])
+		dm.InitModel(params[0], params[1], params[2], params[3], params[4], params[5], s.pi[0], s.pi[1], s.pi[2], s.pi[3])
 		s.m = dm
 	default:
 		var modelint int
@@ -374,7 +392,6 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 
 
 `
-
 	ns := 4
 	discrete := flag.Bool("discrete", true, "discrete gamma distribution")
 	alpha := flag.Float64("alpha", 1.0, "gamma shape parameter")
