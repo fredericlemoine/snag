@@ -26,6 +26,7 @@ type Snag interface {
 	genrootseq() (root []int)
 	Simulate(t *tree.Tree) <-chan SnagSimu
 	SetRoot(rootseq []rune) error
+	SetAncestral(b bool)
 }
 
 // Simulator implementation
@@ -42,6 +43,7 @@ type snagImpl struct {
 	m        models.Model // simulation model
 	l        int          // length of the alignment to generate
 	rootseq  []int        // rootsequence to take into account (if nil, then it is randomly generated for each new simulated alignment)
+	ancest   bool         // write ancestral sequences at internal node comments of output trees
 }
 
 // Result of a simulation
@@ -49,6 +51,37 @@ type SnagSimu struct {
 	t *tree.Tree      // Tree with branch lengths corresponding to number of mutations
 	a align.Alignment // Simulated alignment
 	r []float64       // rates per sites
+}
+
+// Wether or not ancestral sequences are
+// written at internal node of the output
+// tree or not.
+func (s *snagImpl) SetAncestral(b bool) {
+	s.ancest = b
+}
+
+func (s *snagImpl) index2Seq(ind []int) (seq []rune, err error) {
+	seq = make([]rune, len(ind))
+	for i, c := range ind {
+		if s.aa {
+			seq[i], err = align.Index2AA(c)
+		} else {
+			seq[i], err = align.Index2Nt(c)
+		}
+	}
+	return
+}
+
+func (s *snagImpl) seq2Index(seq []rune) (ind []int, err error) {
+	ind = make([]int, len(seq))
+	for i, c := range seq {
+		if s.aa {
+			ind[i], err = align.AA2Index(c)
+		} else {
+			ind[i], err = align.Nt2Index(c)
+		}
+	}
+	return
 }
 
 // Sets the root sequence to take to start simulations
@@ -59,7 +92,6 @@ type SnagSimu struct {
 // if rootseq is nil or with a size==0 or with unknown characters,
 // then returns an error.
 func (s *snagImpl) SetRoot(rootseq []rune) (err error) {
-	var tmpindex int
 	// Check that the given rootseq is initialized
 	if rootseq == nil || len(rootseq) == 0 {
 		err = fmt.Errorf("Nil or 0-length root sequence, cannot use it")
@@ -68,17 +100,8 @@ func (s *snagImpl) SetRoot(rootseq []rune) (err error) {
 	s.rootseq = make([]int, len(rootseq))
 	s.l = len(rootseq)
 	// Convert it to indices
-	for i, c := range rootseq {
-		if s.aa {
-			tmpindex, err = align.AA2Index(c)
-		} else {
-			tmpindex, err = align.Nt2Index(c)
-		}
-		if err != nil {
-			err = fmt.Errorf("Error while setting root sequence, non existent character: %v", err)
-			return
-		}
-		s.rootseq[i] = tmpindex
+	if s.rootseq, err = s.seq2Index(rootseq); err != nil {
+		err = fmt.Errorf("Error while setting root sequence, non existent character: %v", err)
 	}
 	return
 }
@@ -144,6 +167,7 @@ func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 		m:        nil,
 		l:        l,
 		rootseq:  nil,
+		ancest:   false,
 	}
 
 	switch model {
@@ -290,6 +314,12 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 				var nbmuts = 0
 				if prev == nil {
 					seqs[cur.Id()] = rootseq
+					// We write the sequence at the root
+					if s.ancest {
+						var aaseq []rune
+						aaseq, _ = s.index2Seq(rootseq)
+						cur.AddComment(string(aaseq))
+					}
 				} else {
 					prevseq := seqs[prev.Id()]
 					curseq := make([]int, s.l)
@@ -323,17 +353,15 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 						}
 					}
 					e.SetLength(float64(nbmuts))
-
-					if cur.Tip() {
-						aaseq := make([]rune, s.l)
-						for c = 0; c < s.l; c++ {
-							if s.aa {
-								aaseq[c], _ = align.Index2AA(curseq[c])
-							} else {
-								aaseq[c], _ = align.Index2Nt(curseq[c])
-							}
+					if cur.Tip() || s.ancest {
+						var aaseq []rune
+						aaseq, _ = s.index2Seq(curseq)
+						if cur.Tip() {
+							a.AddSequenceChar(cur.Name(), aaseq, "")
 						}
-						a.AddSequenceChar(cur.Name(), aaseq, "")
+						if s.ancest {
+							cur.AddComment(string(aaseq))
+						}
 					}
 				}
 				return true
@@ -405,7 +433,8 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 	parameters := flag.String("parameters", "", "Model parameters: k2p: 'kappa'; f81: 'piA,piC,piG,piT'; gtr: 'd,f,b,e,a,c,piA,piC,piG,piT'")
 	rootseq := flag.String("root-seq", "", "Fasta file with sequence to take as root (invalidates -length)")
 	outalign := flag.String("out-align", "stdout", "Output alignment file")
-	outtrees := flag.String("out-trees", "stdout", "Output tree file")
+	ancestral := flag.Bool("ancestral", false, "If true, then write ancestral sequences as internal nodes comments in the output tree file")
+	outtrees := flag.String("out-trees", "stdout", "Output tree file with real nb mutations as branch lengths and potentially ancestral sequences at internal nodes")
 	outrates := flag.String("out-rates", "stdout", "Output site rates file")
 	help := flag.Bool("help", false, "help")
 	aa := false
@@ -446,6 +475,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 		}
 		defer outalignfile.Close()
 	}
+
 	if *outtrees == "stdout" {
 		outtreefile = os.Stdout
 	} else {
@@ -540,6 +570,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 		exitcode = 1
 		return
 	}
+	snag.SetAncestral(*ancestral)
 	// If a root sequence is given we give it to the simulator
 	if rootsequence != nil {
 		if err = snag.SetRoot(rootsequence); err != nil {
