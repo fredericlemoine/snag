@@ -7,6 +7,8 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/evolbioinfo/goalign/align"
@@ -32,7 +34,6 @@ type snagImpl struct {
 	alpha    float64      // alpha parameter of gamma distribution
 	gamma    bool         // use a gamma distribution
 	ncat     int          // number of categories of discrete gamma distribution
-	kappa    float64      // kappa parameter if k2p model is chosen
 	naligns  int          // number of alignments
 	seed     int64        // random seed
 	aa       bool         // simate aa or nt
@@ -62,7 +63,7 @@ func (s *snagImpl) genrootseq(l int) (root []int) {
 }
 
 func NewSnag(ns int, gamma, discrete bool, alpha float64, ncat int,
-	kappa float64, naligns int, seed int64, aa bool) (s *snagImpl, err error) {
+	params []float64, naligns int, seed int64, model string) (s *snagImpl, err error) {
 
 	if ns != 4 && ns != 20 {
 		err = fmt.Errorf("Number of character state can only be 4 or 20")
@@ -76,35 +77,82 @@ func NewSnag(ns int, gamma, discrete bool, alpha float64, ncat int,
 		alpha:    alpha,
 		gamma:    gamma,
 		ncat:     ncat,
-		kappa:    kappa,
 		naligns:  naligns,
 		seed:     seed,
-		aa:       aa,
+		aa:       false,
 		m:        nil,
 	}
 
-	if !aa {
-		// Initialize base frequencies at 1/4
+	switch model {
+	case "jc":
+		for i := 0; i < ns; i++ {
+			s.pi[i] = 1. / float64(ns)
+		}
+		dm := dna.NewJCModel()
+		dm.InitModel()
+		s.m = dm
+	case "k2p":
+		if len(params) != 1 {
+			err = fmt.Errorf("Wrong parameters for k2p model: %v", params)
+			return
+		}
 		for i := 0; i < ns; i++ {
 			s.pi[i] = 1. / float64(ns)
 		}
 		dm := dna.NewK2PModel()
-		dm.InitModel(kappa)
+		dm.InitModel(params[0])
 		s.m = dm
-	} else {
-		if pm, err2 := protein.NewProtModel(protein.MODEL_LG, gamma, alpha); err2 != nil {
+	case "f81":
+		if len(params) != 4 {
+			err = fmt.Errorf("Wrong parameters for f81 model: %v", params)
 			return
-		} else {
-			// Initialize aa frequencies as defined in the model
-			for i := 0; i < ns; i++ {
-				s.pi[i] = pm.Pi(i)
-			}
-			//pm.PrintMat()
-			pm.InitModel(nil)
-			//pm.PrintMat()
-			//pm.PrintFreqs()
-			s.m = pm
 		}
+		for i := 0; i < ns; i++ {
+			s.pi[i] = params[i]
+		}
+		dm := dna.NewF81Model()
+		dm.InitModel(params[0], params[1], params[2], params[3])
+		s.m = dm
+	case "gtr":
+		if len(params) != 10 {
+			err = fmt.Errorf("Wrong parameters for gtr model: %v", params)
+			return
+		}
+		for i := 0; i < ns; i++ {
+			s.pi[i] = params[i+6]
+		}
+		dm := dna.NewGTRModel()
+		dm.InitModel(params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9])
+		s.m = dm
+	default:
+		var modelint int
+		var pm *protein.ProtModel
+		s.aa = true
+
+		switch model {
+		case "jtt":
+			modelint = protein.MODEL_JTT
+		case "wag":
+			modelint = protein.MODEL_WAG
+		case "lg":
+			modelint = protein.MODEL_LG
+		case "hivb":
+			modelint = protein.MODEL_HIVB
+		default:
+			err = fmt.Errorf("Wrong model: %s", model)
+			return
+		}
+
+		if pm, err = protein.NewProtModel(modelint, gamma, alpha); err != nil {
+			return
+		}
+
+		// Initialize aa frequencies as defined in the model
+		for i := 0; i < ns; i++ {
+			s.pi[i] = pm.Pi(i)
+		}
+		pm.InitModel(nil)
+		s.m = pm
 	}
 	return
 }
@@ -232,48 +280,93 @@ func (s *snagImpl) Simulate(t *tree.Tree, l int) (simuChan <-chan SnagSimu) {
 	return
 }
 
-func main() {
+func snagMain() (exitcode int) {
+
 	var treeChan <-chan tree.Trees
 	var treeReader *bufio.Reader
 	var treeFile io.Closer
 	var err error
+	var paramslice []float64
+	var tmpf float64
 	var outalignfile, outtreefile, outratefile *os.File
 	var snag Snag
 
+	exitcode = 0
+
 	// Arguments
+
+	helpmessage := `SNAG (SequeNce simulAtion in Golang) simulates sequences given a set of input trees.
+
+# Models
+Evolutionary model can be chosen with -model <name> option. 
+
+## Available nucleotide models are:
+- jc
+- k2p : parameter kappa can be set with -parameters <kappa>
+- f81 : parameters can be set with -parameters <piA,piC,piG,piT>
+- gtr : parameters can be set with -parameters <d,f,b,e,a,c,piA,piC,piG,piT>, with gtr matrix being:
+        /          \
+       | *  d  f  b |
+       | d  *  e  a |
+       | f  e  *  c |
+       | b  a  c  * |
+        \          /
+
+## Available protein models are:
+- jtt
+- wag
+- lg
+- hivb
+
+# Site evolutionary rates
+By default, site rates follow a discrete gamma distribution with a shape parameter (alpha) of 1.0 and 4 categories, but it is possible to :
+
+- disable the gamma distribution with: -gamma=false
+- use a continuous gamma distribution with: -discrete=false
+- change the number of categories with: -gamma-cat=6
+- change the alpha parameter with: -alpha=0.8
+
+
+`
+
 	ns := 4
 	discrete := flag.Bool("discrete", true, "discrete gamma distribution")
 	alpha := flag.Float64("alpha", 1.0, "gamma shape parameter")
 	gamma := flag.Bool("gamma", true, "enable gamma distribution of site rates")
 	ncat := flag.Int("gamma-cat", 4, "number of gamma categories")
-	kappa := flag.Float64("kappa", 4.0, "Kappa parameter of K2P model")
 	intree := flag.String("intree", "stdin", "Input tree")
 	naligns := flag.Int("num-aligns", 1, "number of alignments to simulate per input tree")
 	seed := flag.Int64("seed", time.Now().UTC().UnixNano(), "Random Seed parameter")
 	l := flag.Int("length", 100, "Simulated alignment length")
-	aa := flag.Bool("aa", false, "Simulate protein sequence")
+	model := flag.String("model", "k2p", "Evolutionary model (for dna: jc, k2p, f81, gtr; for aa: jtt, wag, lg, hivb)")
+	parameters := flag.String("parameters", "", "Model parameters: k2p: 'kappa'; f81: 'piA,piC,piG,piT'; gtr: 'd,f,b,e,a,c,piA,piC,piG,piT'")
 	outalign := flag.String("out-align", "stdout", "Output alignment file")
 	outtrees := flag.String("out-trees", "stdout", "Output tree file")
 	outrates := flag.String("out-rates", "stdout", "Output site rates file")
 	help := flag.Bool("help", false, "help")
+	aa := false
+	nt := true
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, helpmessage)
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 
 	flag.Parse()
 
-	// fmt.Println(*discrete)
-	// fmt.Println(*alpha)
-	// fmt.Println(*gamma)
-	// fmt.Println(*ncat)
-	// fmt.Println(*kappa)
-	// fmt.Println(*intree)
-	// fmt.Println(*naligns)
-	// fmt.Println(*l)
-	// fmt.Println(*aa)
-	// fmt.Println(*outalign)
-	// fmt.Println(*outtrees)
-	// fmt.Println(*help)
-
 	if *help {
 		flag.Usage()
+		exitcode = 1
+		return
+	}
+
+	aa = (*model == "jtt" || *model == "wag" || *model == "lg" || *model == "hivb")
+	nt = (*model == "jc" || *model == "k2p" || *model == "f81" || *model == "gtr")
+
+	if !aa && !nt {
+		fmt.Fprintf(os.Stderr, "Wrong model: %s\n", model)
+		flag.Usage()
+		exitcode = 1
 		return
 	}
 
@@ -282,6 +375,9 @@ func main() {
 		outalignfile = os.Stdout
 	} else {
 		if outalignfile, err = os.Create(*outalign); err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			flag.Usage()
+			exitcode = 1
 			return
 		}
 		defer outalignfile.Close()
@@ -290,6 +386,9 @@ func main() {
 		outtreefile = os.Stdout
 	} else {
 		if outtreefile, err = os.Create(*outtrees); err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			flag.Usage()
+			exitcode = 1
 			return
 		}
 		defer outtreefile.Close()
@@ -298,12 +397,15 @@ func main() {
 		outratefile = os.Stdout
 	} else {
 		if outratefile, err = os.Create(*outrates); err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			flag.Usage()
+			exitcode = 1
 			return
 		}
 		defer outratefile.Close()
 	}
 
-	if *aa {
+	if aa {
 		ns = 20
 	}
 
@@ -313,16 +415,37 @@ func main() {
 		*ncat = 1
 	}
 
+	// Parse parameters
+	paramslice = make([]float64, 0, 0)
+	if *parameters != "" {
+		tmpslice := strings.Split(*parameters, ",")
+		for _, v := range tmpslice {
+			if tmpf, err = strconv.ParseFloat(v, 64); err != nil {
+				fmt.Fprintf(os.Stderr, "Wrong parameters arguments: %s\n", *parameters)
+				flag.Usage()
+				exitcode = 1
+				return
+			}
+			paramslice = append(paramslice, tmpf)
+		}
+	}
+
 	// Parse Trees
 	if treeFile, treeReader, err = utils.GetReader(*intree); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		flag.Usage()
+		exitcode = 1
 		return
 	}
 	defer treeFile.Close()
 	treeChan = utils.ReadMultiTrees(treeReader, utils.FORMAT_NEWICK)
 
 	// Simulate alignments
-	if snag, err = NewSnag(ns, *gamma, *discrete, *alpha, *ncat, *kappa, *naligns, *seed, *aa); err != nil {
-		panic(err)
+	if snag, err = NewSnag(ns, *gamma, *discrete, *alpha, *ncat, paramslice, *naligns, *seed, *model); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		flag.Usage()
+		exitcode = 1
+		return
 	}
 	for trees := range treeChan {
 		for si := range snag.Simulate(trees.Tree, *l) {
@@ -331,4 +454,10 @@ func main() {
 			fmt.Fprintln(outalignfile, phylip.WriteAlignment(si.a, false, false, false))
 		}
 	}
+
+	return
+}
+
+func main() {
+	os.Exit(snagMain())
 }
