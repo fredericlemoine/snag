@@ -353,12 +353,10 @@ Evolutionary model can be chosen with -model <name> option.
 - k2p : parameter kappa can be set with -parameters <kappa>
 - f81 : parameters can be set with -parameters <piA,piC,piG,piT>
 - gtr : parameters can be set with -parameters <d,f,b,e,a,c,piA,piC,piG,piT>, with gtr matrix being:
-        /          \
-       | *  d  f  b |
+       ⌈ *  d  f  b ⌉
        | d  *  e  a |
        | f  e  *  c |
-       | b  a  c  * |
-        \          /
+       ⌊ b  a  c  * ⌋
 
 ## Available protein models are:
 - jtt
@@ -388,7 +386,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 	l := flag.Int("length", 100, "Simulated alignment length")
 	model := flag.String("model", "k2p", "Evolutionary model (for dna: jc, k2p, f81, gtr; for aa: jtt, wag, lg, hivb)")
 	parameters := flag.String("parameters", "", "Model parameters: k2p: 'kappa'; f81: 'piA,piC,piG,piT'; gtr: 'd,f,b,e,a,c,piA,piC,piG,piT'")
-	rootseq := flag.String("root-seq", "", "Fasta file with sequence to take as root (invalidate -length)")
+	rootseq := flag.String("root-seq", "", "Fasta file with sequence to take as root (invalidates -length)")
 	outalign := flag.String("out-align", "stdout", "Output alignment file")
 	outtrees := flag.String("out-trees", "stdout", "Output tree file")
 	outrates := flag.String("out-rates", "stdout", "Output site rates file")
