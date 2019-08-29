@@ -550,6 +550,14 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 			exitcode = 1
 			return
 		}
+
+		if (aa && tmpali.Alphabet() != align.AMINOACIDS) ||
+			(!aa && tmpali.Alphabet() != align.NUCLEOTIDS) {
+			fmt.Fprintf(os.Stderr, "Root Sequence alphabet is not compatible with simulation model\n")
+			flag.Usage()
+			exitcode = 1
+			return
+		}
 		rootsequence, _ = tmpali.GetSequenceCharById(0)
 	}
 
@@ -571,6 +579,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 		return
 	}
 	snag.SetAncestral(*ancestral)
+
 	// If a root sequence is given we give it to the simulator
 	if rootsequence != nil {
 		if err = snag.SetRoot(rootsequence); err != nil {
