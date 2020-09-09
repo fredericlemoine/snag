@@ -25,7 +25,7 @@ import (
 type Snag interface {
 	genrootseq() (root []int)
 	Simulate(t *tree.Tree) <-chan SnagSimu
-	SetRoot(rootseq []rune) error
+	SetRoot(rootseq []uint8) error
 	SetAncestral(b bool)
 }
 
@@ -60,8 +60,8 @@ func (s *snagImpl) SetAncestral(b bool) {
 	s.ancest = b
 }
 
-func (s *snagImpl) index2Seq(ind []int) (seq []rune, err error) {
-	seq = make([]rune, len(ind))
+func (s *snagImpl) index2Seq(ind []int) (seq []uint8, err error) {
+	seq = make([]uint8, len(ind))
 	for i, c := range ind {
 		if s.aa {
 			seq[i], err = align.Index2AA(c)
@@ -72,7 +72,7 @@ func (s *snagImpl) index2Seq(ind []int) (seq []rune, err error) {
 	return
 }
 
-func (s *snagImpl) seq2Index(seq []rune) (ind []int, err error) {
+func (s *snagImpl) seq2Index(seq []uint8) (ind []int, err error) {
 	ind = make([]int, len(seq))
 	for i, c := range seq {
 		if s.aa {
@@ -91,7 +91,7 @@ func (s *snagImpl) seq2Index(seq []rune) (ind []int, err error) {
 //
 // if rootseq is nil or with a size==0 or with unknown characters,
 // then returns an error.
-func (s *snagImpl) SetRoot(rootseq []rune) (err error) {
+func (s *snagImpl) SetRoot(rootseq []uint8) (err error) {
 	// Check that the given rootseq is initialized
 	if rootseq == nil || len(rootseq) == 0 {
 		err = fmt.Errorf("Nil or 0-length root sequence, cannot use it")
@@ -316,7 +316,7 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 					seqs[cur.Id()] = rootseq
 					// We write the sequence at the root
 					if s.ancest {
-						var aaseq []rune
+						var aaseq []uint8
 						aaseq, _ = s.index2Seq(rootseq)
 						cur.AddComment(string(aaseq))
 					}
@@ -354,7 +354,7 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 					}
 					e.SetLength(float64(nbmuts))
 					if cur.Tip() || s.ancest {
-						var aaseq []rune
+						var aaseq []uint8
 						aaseq, _ = s.index2Seq(curseq)
 						if cur.Tip() {
 							a.AddSequenceChar(cur.Name(), aaseq, "")
@@ -376,7 +376,7 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 func snagMain() (exitcode int) {
 
 	var treeChan <-chan tree.Trees
-	var rootsequence []rune
+	var rootsequence []uint8
 	var treeReader *bufio.Reader
 	var treeFile io.Closer
 	var err error
