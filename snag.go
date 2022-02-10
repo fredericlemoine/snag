@@ -27,6 +27,7 @@ type Snag interface {
 	Simulate(t *tree.Tree) <-chan SnagSimu
 	SetRoot(rootseq []uint8) error
 	SetAncestral(b bool)
+	SetRates(r []float64)
 }
 
 // Simulator implementation
@@ -38,6 +39,7 @@ type snagImpl struct {
 	gamma    bool         // use a gamma distribution
 	ncat     int          // number of categories of discrete gamma distribution
 	naligns  int          // number of alignments
+	rates    []float64    // Use given rates
 	seed     int64        // random seed
 	aa       bool         // simate aa or nt
 	m        models.Model // simulation model
@@ -58,6 +60,12 @@ type SnagSimu struct {
 // tree or not.
 func (s *snagImpl) SetAncestral(b bool) {
 	s.ancest = b
+}
+
+// SetRates will give the site rates to the simulator
+// Will then desactivate gamma distribution, etc.
+func (s *snagImpl) SetRates(r []float64) {
+	s.rates = r
 }
 
 func (s *snagImpl) index2Seq(ind []int) (seq []uint8, err error) {
@@ -302,7 +310,15 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 	go func() {
 		for ia = 0; ia < s.naligns; ia++ {
 			rootseq = s.genrootseq()
-			rates, cats = models.GenerateRates(s.l, s.gamma, s.alpha, s.ncat, s.discrete)
+			if s.rates != nil && len(s.rates) == len(rootseq) {
+				rates = s.rates
+				cats = make([]int, len(rootseq))
+			} else {
+				if s.rates != nil {
+					fmt.Fprintf(os.Stderr, "Warning: A rate file is given but it does not have the same length as the root sequence, we then generate rates according to other given options")
+				}
+				rates, cats = models.GenerateRates(s.l, s.gamma, s.alpha, s.ncat, s.discrete)
+			}
 			if s.aa {
 				a = align.NewAlign(align.AMINOACIDS)
 			} else {
@@ -326,7 +342,7 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 					seqs[cur.Id()] = curseq
 					for c = 0; c < s.l; c++ {
 						sitecat = 0
-						if s.gamma && s.discrete {
+						if s.rates == nil && s.gamma && s.discrete {
 							sitecat = cats[c]
 						}
 						// We initialize the pij for that branch and that category
@@ -336,7 +352,7 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 						pij = pijs[sitecat][cur.Id()]
 						// If not discrete, we must recompute the pijs
 						// with given most probably unique (rate,brlen) pair
-						if s.gamma && !s.discrete {
+						if s.rates != nil || (s.gamma && !s.discrete) {
 							pij.SetLength(lengths[e.Id()] * rates[c])
 						}
 						// we simulate the next character state along the branch
@@ -381,6 +397,7 @@ func snagMain() (exitcode int) {
 	var treeFile io.Closer
 	var err error
 	var paramslice []float64
+	var rates []float64
 	var tmpf float64
 	var outalignfile, outtreefile, outratefile *os.File
 	var snag Snag
@@ -417,7 +434,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 - use a continuous gamma distribution with: -discrete=false
 - change the number of categories with: -gamma-cat=6
 - change the alpha parameter with: -alpha=0.8
-
+- use site rates given by the user -rates <file> (-gamma and -discrete are useless in this case)
 
 `
 	ns := 4
@@ -426,6 +443,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 	gamma := flag.Bool("gamma", true, "enable gamma distribution of site rates")
 	ncat := flag.Int("gamma-cat", 4, "number of gamma categories")
 	intree := flag.String("intree", "stdin", "Input tree")
+	inrates := flag.String("rates", "none", "Input site rate file (one rate per line)")
 	naligns := flag.Int("num-aligns", 1, "number of alignments to simulate per input tree")
 	seed := flag.Int64("seed", time.Now().UTC().UnixNano(), "Random Seed parameter")
 	l := flag.Int("length", 100, "Simulated alignment length")
@@ -474,6 +492,32 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 			return
 		}
 		defer outalignfile.Close()
+	}
+
+	if *inrates != "none" {
+		var fi io.Closer
+		var r *bufio.Reader
+		var b float64
+		rates = make([]float64, 0)
+
+		if fi, r, err = utils.GetReader(*inrates); err != nil {
+			fmt.Fprintf(os.Stderr, "Error while parsing site rate file: %s\n", err)
+			flag.Usage()
+			exitcode = 1
+			return
+		}
+		scanner := bufio.NewScanner(r)
+		// optionally, resize scanner's capacity for lines over 64K, see next example
+		for scanner.Scan() {
+			if b, err = strconv.ParseFloat(scanner.Text(), 64); err != nil {
+				fmt.Fprintf(os.Stderr, "Error while parsing site rate file: %s\n", err)
+				flag.Usage()
+				exitcode = 1
+				return
+			}
+			rates = append(rates, b)
+		}
+		fi.Close()
 	}
 
 	if *outtrees == "stdout" {
@@ -579,6 +623,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 		return
 	}
 	snag.SetAncestral(*ancestral)
+	snag.SetRates(rates)
 
 	// If a root sequence is given we give it to the simulator
 	if rootsequence != nil {
