@@ -27,7 +27,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 - use a continuous gamma distribution with: -discrete=false
 - change the number of categories with: -gamma-cat=6
 - change the alpha parameter with: -alpha=0.8
-
+- give an input file with site rates, with `-rates <file>`. In this case, other rate related options are ignored (`-gamma`, `-gamma-cat`, `-alpha`, `-discrete`), and site rates are taken from the file. There must be exactly one rate per site. Otherwise, the other options are taken into account.
 
 ## Usage
 
