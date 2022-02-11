@@ -1,6 +1,6 @@
 GO_EXECUTABLE := go
 VERSION := $(shell git describe --abbrev=10 --dirty --always --tags)
-VERSION_PACKAGE := github.com/fredericlemoine/snag/main.Version
+VERSION_PACKAGE := main.Version
 NAME := snag
 PACKAGE:=github.com/fredericlemoine/snag
 
