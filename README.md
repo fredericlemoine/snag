@@ -32,9 +32,11 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 ## Usage
 
 ```
-Usage of snag:
+Usage of ./snag:
   -alpha float
     	gamma shape parameter (default 1)
+  -ancestral
+    	If true, then write ancestral sequences as internal nodes comments in the output tree file
   -discrete
     	discrete gamma distribution (default true)
   -gamma
@@ -56,12 +58,13 @@ Usage of snag:
   -out-rates string
     	Output site rates file (default "stdout")
   -out-trees string
-    	Output tree file (default "stdout")
+    	Output tree file with real nb mutations as branch lengths and potentially ancestral sequences at internal nodes (default "stdout")
   -parameters string
     	Model parameters: k2p: 'kappa'; f81: 'piA,piC,piG,piT'; gtr: 'd,f,b,e,a,c,piA,piC,piG,piT'
+  -rates string
+    	Input site rate file (one rate per line), if given, -gamma, -alpha, -discrete and -gamma-cat are ignored (default "none")
   -root-seq string
     	Fasta file with sequence to take as root (invalidates -length)
   -seed int
-    	Random Seed parameter (default 1567000721504788897)
+    	Random Seed parameter (default 1644570310459651000)
 ```
-

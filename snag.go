@@ -443,7 +443,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 	gamma := flag.Bool("gamma", true, "enable gamma distribution of site rates")
 	ncat := flag.Int("gamma-cat", 4, "number of gamma categories")
 	intree := flag.String("intree", "stdin", "Input tree")
-	inrates := flag.String("rates", "none", "Input site rate file (one rate per line)")
+	inrates := flag.String("rates", "none", "Input site rate file (one rate per line), if given, -gamma, -alpha, -discrete and -gamma-cat are ignored")
 	naligns := flag.Int("num-aligns", 1, "number of alignments to simulate per input tree")
 	seed := flag.Int64("seed", time.Now().UTC().UnixNano(), "Random Seed parameter")
 	l := flag.Int("length", 100, "Simulated alignment length")
