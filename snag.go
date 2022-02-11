@@ -21,6 +21,8 @@ import (
 	"github.com/evolbioinfo/gotree/tree"
 )
 
+var Version string = "Unknown"
+
 // Simulator Interface
 type Snag interface {
 	genrootseq() (root []int)
@@ -454,6 +456,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 	ancestral := flag.Bool("ancestral", false, "If true, then write ancestral sequences as internal nodes comments in the output tree file")
 	outtrees := flag.String("out-trees", "stdout", "Output tree file with real nb mutations as branch lengths and potentially ancestral sequences at internal nodes")
 	outrates := flag.String("out-rates", "stdout", "Output site rates file")
+	version := flag.Bool("version", false, "Display version of snag")
 	help := flag.Bool("help", false, "help")
 	aa := false
 	nt := true
@@ -471,11 +474,17 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 		return
 	}
 
+	if *version {
+		fmt.Fprintf(os.Stderr, "%s version %s\n", os.Args[0], Version)
+		exitcode = 0
+		return
+	}
+
 	aa = (*model == "jtt" || *model == "wag" || *model == "lg" || *model == "hivb")
 	nt = (*model == "jc" || *model == "k2p" || *model == "f81" || *model == "gtr")
 
 	if !aa && !nt {
-		fmt.Fprintf(os.Stderr, "Wrong model: %s\n", model)
+		fmt.Fprintf(os.Stderr, "Wrong model: %s\n", *model)
 		flag.Usage()
 		exitcode = 1
 		return
