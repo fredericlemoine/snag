@@ -467,7 +467,6 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 	}
 
 	flag.Parse()
-
 	if *help {
 		flag.Usage()
 		exitcode = 1
