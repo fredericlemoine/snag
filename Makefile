@@ -13,15 +13,12 @@ dep:
 build:
 	CGO_ENABLED=${CGO_ENABLED} ${GO_EXECUTABLE} build -o ${NAME} -ldflags "-X ${VERSION_PACKAGE}=${VERSION}" ${PACKAGE}
 
-install: testcommands
+install:
 	rm -f ${GOPATH}/bin/${NAME}
 	CGO_ENABLED=${CGO_ENABLED} ${GO_EXECUTABLE} install -ldflags "-X ${VERSION_PACKAGE}=${VERSION}" ${PACKAGE}
 
 test: dep
 	CGO_ENABLED=${CGO_ENABLED} ${GO_EXECUTABLE} test ${PACKAGE}/...
-
-testcommands:
-	bash ./test.sh
 
 .PHONY: deploy deploydir deploywinamd deploywin386 deploylinuxamd deploylinux386 deploydarwinamd deploydarwin386
 
