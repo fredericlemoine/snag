@@ -156,11 +156,12 @@ func checkPI(pi []float64) {
 	}
 }
 
+// Custom PIs is for frequencies given by users. If nil then we take frequencies of the model.
 func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 	params []float64, naligns int, seed int64, model string) (s *snagImpl, err error) {
 
 	if ns != 4 && ns != 20 {
-		err = fmt.Errorf("Number of character state can only be 4 or 20")
+		err = fmt.Errorf("number of character state can only be 4 or 20")
 		return
 	}
 
@@ -190,7 +191,7 @@ func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 		s.m = dm
 	case "k2p":
 		if len(params) != 1 {
-			err = fmt.Errorf("Wrong parameters for k2p model: %v", params)
+			err = fmt.Errorf("wrong parameters for k2p model: %v", params)
 			return
 		}
 		for i := 0; i < ns; i++ {
@@ -201,7 +202,7 @@ func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 		s.m = dm
 	case "f81":
 		if len(params) != 4 {
-			err = fmt.Errorf("Wrong parameters for f81 model: %v", params)
+			err = fmt.Errorf("wrong parameters for f81 model: %v", params)
 			return
 		}
 		for i := 0; i < ns; i++ {
@@ -213,9 +214,10 @@ func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 		s.m = dm
 	case "gtr":
 		if len(params) != 10 {
-			err = fmt.Errorf("Wrong parameters for gtr model: %v", params)
+			err = fmt.Errorf("wrong parameters for gtr model: %v", params)
 			return
 		}
+
 		for i := 0; i < ns; i++ {
 			s.pi[i] = params[i+6]
 		}
@@ -246,9 +248,17 @@ func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 			return
 		}
 
-		// Initialize aa frequencies as defined in the model
-		for i := 0; i < ns; i++ {
-			s.pi[i] = pm.Pi(i)
+		// Initialize aa frequencies as defined in the model or as defined in the params slice
+		if len(params) > 0 {
+			if len(params) != ns {
+				err = fmt.Errorf("given frequency/params array does not have a length compatible with the alphabet (20)")
+				return
+			}
+			s.pi = params
+		} else {
+			for i := 0; i < ns; i++ {
+				s.pi[i] = pm.Pi(i)
+			}
 		}
 		pm.InitModel(nil)
 		s.m = pm
@@ -437,7 +447,6 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 - change the number of categories with: -gamma-cat=6
 - change the alpha parameter with: -alpha=0.8
 - use site rates given by the user -rates <file> (-gamma and -discrete are useless in this case)
-
 `
 	ns := 4
 	discrete := flag.Bool("discrete", true, "discrete gamma distribution")
@@ -450,7 +459,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 	seed := flag.Int64("seed", time.Now().UTC().UnixNano(), "Random Seed parameter")
 	l := flag.Int("length", 100, "Simulated alignment length")
 	model := flag.String("model", "k2p", "Evolutionary model (for dna: jc, k2p, f81, gtr; for aa: jtt, wag, lg, hivb)")
-	parameters := flag.String("parameters", "", "Model parameters: k2p: 'kappa'; f81: 'piA,piC,piG,piT'; gtr: 'd,f,b,e,a,c,piA,piC,piG,piT'")
+	parameters := flag.String("parameters", "", "Model parameters: k2p: 'kappa'; f81: 'piA,piC,piG,piT'; gtr: 'd,f,b,e,a,c,piA,piC,piG,piT, amino-acid models: piA, piR, piN, piD, piC, piQ, piE, piG, piH, piI, piL, piK, piM, piF, piP, piS, piT, piW, piY, piV (otherwise: take model frequencies)'")
 	rootseq := flag.String("root-seq", "", "Fasta file with sequence to take as root (invalidates -length)")
 	outalign := flag.String("out-align", "stdout", "Output alignment file")
 	ancestral := flag.Bool("ancestral", false, "If true, then write ancestral sequences as internal nodes comments in the output tree file")
@@ -539,6 +548,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 		}
 		defer outtreefile.Close()
 	}
+
 	if *outrates == "stdout" {
 		outratefile = os.Stdout
 	} else {
