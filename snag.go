@@ -312,7 +312,6 @@ func (s *snagImpl) Simulate(t *tree.Tree) (simuChan <-chan SnagSimu) {
 
 	// One sequence per tree node
 	seqs = make([][]int, nnodes)
-
 	// Pij per rate category (if any) and per branch
 	pijs = make([][]*models.Pij, s.ncat)
 	for cati = 0; cati < s.ncat; cati++ {
@@ -567,7 +566,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 
 	rand.Seed(*seed)
 
-	if !*gamma || !*discrete {
+	if !*gamma || !*discrete || rates != nil {
 		*ncat = 1
 	}
 
