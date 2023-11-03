@@ -463,7 +463,7 @@ By default, site rates follow a discrete gamma distribution with a shape paramet
 	naligns := flag.Int("num-aligns", 1, "number of alignments to simulate per input tree")
 	seed := flag.Int64("seed", time.Now().UTC().UnixNano(), "Random Seed parameter")
 	l := flag.Int("length", 100, "Simulated alignment length")
-	model := flag.String("model", "k2p", "Evolutionary model (for dna: jc, k2p, f81, gtr; for aa: jtt, wag, lg, hivb)")
+	model := flag.String("model", "k2p", "Evolutionary model (for dna: jc, k2p, f81, gtr; for aa: jtt, wag, lg, hivb, mtrev, ab)")
 	parameters := flag.String("parameters", "", "Model parameters: k2p: 'kappa'; f81: 'piA,piC,piG,piT'; gtr: 'd,f,b,e,a,c,piA,piC,piG,piT, amino-acid models: piA, piR, piN, piD, piC, piQ, piE, piG, piH, piI, piL, piK, piM, piF, piP, piS, piT, piW, piY, piV (otherwise: take model frequencies)'")
 	rootseq := flag.String("root-seq", "", "Fasta file with sequence to take as root (invalidates -length)")
 	outalign := flag.String("out-align", "stdout", "Output alignment file")
