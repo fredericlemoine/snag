@@ -239,6 +239,10 @@ func NewSnag(ns, l int, gamma, discrete bool, alpha float64, ncat int,
 			modelint = protein.MODEL_LG
 		case "hivb":
 			modelint = protein.MODEL_HIVB
+		case "ab":
+			modelint = protein.MODEL_AB
+		case "mtrev":
+			modelint = protein.MODEL_MTREV
 		default:
 			err = fmt.Errorf("Wrong model: %s", model)
 			return
@@ -433,10 +437,12 @@ Evolutionary model can be chosen with -model <name> option.
        ⌊ b  a  c  * ⌋
 
 ## Available protein models are:
-- jtt
-- wag
-- lg
-- hivb
+- jtt (https://doi.org/10.1093/bioinformatics/8.3.275)
+- wag (https://doi.org/10.1093/oxfordjournals.molbev.a003851)
+- lg (https://doi.org/10.1093/molbev/msn067)
+- hivb (https://doi.org/10.1371/journal.pone.0000503)
+- ab (https://doi.org/10.1093/molbev/msu340)
+- mtrev (https://doi.org/10.1007/bf02498640)
 
 # Site evolutionary rates
 By default, site rates follow a discrete gamma distribution with a shape parameter (alpha) of 1.0 and 4 categories, but it is possible to :
