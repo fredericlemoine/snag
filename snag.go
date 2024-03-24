@@ -104,14 +104,14 @@ func (s *snagImpl) seq2Index(seq []uint8) (ind []int, err error) {
 func (s *snagImpl) SetRoot(rootseq []uint8) (err error) {
 	// Check that the given rootseq is initialized
 	if rootseq == nil || len(rootseq) == 0 {
-		err = fmt.Errorf("Nil or 0-length root sequence, cannot use it")
+		err = fmt.Errorf("nil or 0-length root sequence, cannot use it")
 		return
 	}
 	s.rootseq = make([]int, len(rootseq))
 	s.l = len(rootseq)
 	// Convert it to indices
 	if s.rootseq, err = s.seq2Index(rootseq); err != nil {
-		err = fmt.Errorf("Error while setting root sequence, non existent character: %v", err)
+		err = fmt.Errorf("error while setting root sequence, non existent character: %v", err)
 	}
 	return
 }

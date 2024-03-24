@@ -101,6 +101,10 @@ github.com/evolbioinfo/goalign v0.3.5 h1:pC68C2Ldy1aknC8aRiMr71Atdd3iW945Quhj0/7
 github.com/evolbioinfo/goalign v0.3.5/go.mod h1:oIdn4OwdwbuB4IeJOnig35dpWIuy09cwgY50PxV1o80=
 github.com/evolbioinfo/goalign v0.3.7-0.20231103093413-ea985a7e9203 h1:vhK+CVAfDi4es3+9zIec6anIigDCAakicwhweLEanuk=
 github.com/evolbioinfo/goalign v0.3.7-0.20231103093413-ea985a7e9203/go.mod h1:2W3eQYCYJ+a1uTI9tCelGT4DlgiztrLB6mAUGRt0c4Y=
+github.com/evolbioinfo/goalign v0.3.7 h1:hsHjg+CyXnxzYcRP2K0kL3Jzkq1ErD8z0EtlDIKM3ds=
+github.com/evolbioinfo/goalign v0.3.7/go.mod h1:2W3eQYCYJ+a1uTI9tCelGT4DlgiztrLB6mAUGRt0c4Y=
+github.com/evolbioinfo/goalign v0.3.8-0.20240324222438-f75f0b3734d9 h1:hVtOLFhncrF1MyO9jA0sOdNnWcgfv/feaSO1VMZf/Ew=
+github.com/evolbioinfo/goalign v0.3.8-0.20240324222438-f75f0b3734d9/go.mod h1:Mg0hh22BcBZiH4U4LOvPowJ/k/eqt2CpmdYTjVVX3+A=
 github.com/evolbioinfo/gotree v0.4.2 h1:m9PuaJ1lee2PjjPNwZSNmIyxVkFaiSd8z/Y+Ef2q29k=
 github.com/evolbioinfo/gotree v0.4.2/go.mod h1:XReNa1GoXj9sG5q3SGBjCvROjYET0MPcMko6UdpqX8U=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
